@@ -2,20 +2,23 @@ package com.example.listapp
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.listapp.models.Item
 import com.example.listapp.models.ItemList
+import org.json.JSONObject
+import java.net.URL
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
     private var itemList = ItemList()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        itemList.getData()
-       //itemList.generateData()
         val recyclerView = findViewById<RecyclerView>(R.id.list_recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
@@ -73,5 +76,41 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        getData(itemList,ladapter)
+    }
+
+    fun getData(itemList:ItemList, lAdapter: ItemListAdapter){
+        val nst = Executors.newSingleThreadExecutor()
+        nst.execute {
+            var response = URL("http://mec402.boisestate.edu/cgi-bin/cs402/lenjson")
+            var jsText = response.readText()
+            var json = JSONObject(jsText)
+           // val itemCount = json.getString("length").toInt()
+            val itemCount = 100
+            for(i in 0 until itemCount/10){
+                //Log.d("times",i.toString())
+                val start = i * 10
+                var stop = (i+1)*10
+                if(i+1 == itemCount/10){
+                    stop = itemCount
+                }
+                response = URL("http://mec402.boisestate.edu/cgi-bin/cs402/pagejson?start=${start}&stop=${stop}")
+                jsText = response.readText()
+                json = JSONObject(jsText)
+                val items = json.getJSONArray("data")
+
+                val listCount = itemList.size
+                for(j in 0 until items.length()){
+                    val item = items.getJSONObject(j)
+                    itemList.add(Item(item.getString("name"),item.getBoolean("selected")))
+                }
+                runOnUiThread(Runnable {
+                    lAdapter.notifyItemRangeInserted(listCount,items.length()-1)
+                })
+
+            }
+        }
+
     }
 }
